@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Bandeau défilant modifiable</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    /* Styles généraux et couleurs */
+    :root { 
+      --panel-bg: rgba(0,0,0,0.75); 
+      --accent: #00BFFF; /* Bleu vif pour les boutons, le gyrophare et les coches */
+      --gyrophare-glow: rgba(0, 191, 255, 1);
+      --hex-color: #0d2836; /* Couleur du filet hexagonal foncé */
+    }
+    
+    /* FOND D'ÉCRAN HEXAGONAL */
+    body { 
+        background: 
+            linear-gradient(217deg, rgba(0,0,0,0.8), rgba(0,0,0,0.1) 70.7%),
+            linear-gradient(127deg, rgba(0,0,0,0.8), rgba(0,0,0,0.1) 70.7%),
+            linear-gradient(336deg, rgba(0,0,0,0.8), rgba(0,0,0,0.1) 70.7%),
+            #000;
+        color: white; 
+        font-size: 2rem; 
+        margin: 0; 
+        overflow: hidden; 
+        font-family: Arial, sans-serif; 
+        position: relative;
+        /* Ajout du motif hexagonal via background-image */
+        background-image: 
+            linear-gradient(to right, var(--hex-color) 1px, transparent 1px),
+            linear-gradient(to bottom, var(--hex-color) 1px, transparent 1px);
+        background-size: 50px 50px; 
+        box-shadow: inset 0 0 100px rgba(0, 191, 255, 0.1);
+    }
+    
+    .container { height: 100vh; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
+    .scroll { animation: verticalScroll 15s linear infinite; white-space: pre-line; text-align: center; max-width: 80ch; }
+    @keyframes verticalScroll { 0% { transform: translateY(100%); } 100% { transform: translateY(-100%); } }
+
+    .editor-panel { position: fixed; top: 20px; left: 20px; background: var(--panel-bg); padding: 14px; border-radius: 12px; width: 320px; font-size: 1rem; box-shadow: 0 6px 18px rgba(0,0,0,0.6); color: #fff; z-index: 999; }
+    .editor-panel h3 { margin: 0 0 8px 0; font-size: 1.1rem }
+    .editor-panel textarea { width: 100%; height: 180px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); padding: 8px; background: rgba(255,255,255,0.02); color: #fff; }
+    .editor-panel .controls { display: flex; gap: 8px; margin-top: 10px }
+    .editor-panel button { flex: 1; padding: 8px; border-radius: 8px; border: none; cursor: pointer; background: var(--accent); color: #000; font-weight: 600; }
+    .editor-panel button.secondary { background: transparent; border: 1px solid rgba(255,255,255,0.12); color: #fff; }
+    .editor-panel input[type=range] { width: 100% }
+
+    .action-btn { position: fixed; right: 20px; padding: 10px 14px; border-radius: 8px; border: none; cursor: pointer; background: var(--accent); color: #000; font-weight: 600; z-index: 999; }
+
+    /* Pseudo-fullscreen fallback */
+    .pseudo-fullscreen .container { position: fixed !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; display: flex !important; align-items: center !important; justify-content: center !important; background: black; z-index: 2147483646; }
+    .pseudo-fullscreen .editor-panel { display: none !important }
+    .pseudo-fullscreen .scroll { font-size: 2.4rem; }
+    .editor-hidden { display: none !important; }
+
+    /* Styles des gyrophares (Grand Flash Lumineux 60vw) */
+    .gyrophare-wrapper {
+        position: fixed; 
+        bottom: 20px; 
+        left: 20px; 
+        right: 20px; 
+        display: flex;
+        justify-content: space-between; 
+        z-index: 10;
+        perspective: 500px; 
+        perspective-origin: center bottom;
+    }
+
+    .gyrophare {
+        width: 8vw;
+        max-width: 60px;
+        height: 8vw;
+        max-height: 60px;
+        border-radius: 50%;
+        background-color: transparent; 
+        animation: none; 
+        position: relative;
+        box-shadow: none; 
+    }
+    
+    .gyrophare::before { content: ''; display: none; }
+
+    /* Le halo de lumière projeté sur l'environnement (TAILLE 60VW) */
+    .gyrophare::after {
+        content: '';
+        position: fixed;
+        width: 60vw;
+        height: 60vw;
+        border-radius: 50%;
+        bottom: 10px;
+        background: radial-gradient(circle, var(--gyrophare-glow) 0%, rgba(0, 0, 0, 0) 60%);
+        opacity: 0; 
+        z-index: -1;
+    }
+    
+    /* Positionnement de la lueur projetée (AJUSTÉ POUR 60VW) */
+    .gyrophare-wrapper > .gyrophare:first-child::after { left: calc(20px + 3vw - 30vw); }
+    .gyrophare-wrapper > .gyrophare:last-child::after { right: calc(20px + 3vw - 30vw); }
+
+
+    /* Animation du flash sur la lueur projetée */
+    @keyframes flash-opacity {
+        0%, 30% { opacity: 0; }
+        50% { opacity: 0.6; } 
+        50.1%, 100% { opacity: 0; }
+    }
+    
+    .gyrophare::after {
+        animation: flash-opacity 0.8s infinite alternate;
+    }
+
+    /* Décalage pour le gyrophare droit (pour l'alternance) */
+    .gyrophare-wrapper > .gyrophare:last-child::after {
+        animation-delay: 0.4s; 
+    }
+    /* Style pour l'icône SVG de la coche */
+    .blue-check-svg { 
+        height: 1.2em; 
+        width: 1.2em; 
+        vertical-align: middle;
+        margin-right: 15px;
+        display: inline-block;
+        fill: var(--accent); /* Utilise la couleur accent (bleu) */
+    }
+
+  </style>
+</head>
+<body>
+  <div class="gyrophare-wrapper">
+    <div class="gyrophare"></div>
+    <div class="gyrophare"></div>
+  </div>
+
+  <div class="container">
+    <div id="scroll" class="scroll" aria-live="polite"></div>
+  </div>
+
+  <button id="togglePanel" class="action-btn" style="top:20px;">Cacher l’éditeur</button>
+  <button id="fullscreenBtn" class="action-btn" style="top:70px;">Plein écran</button>
+
+  <div class="editor-panel editor-hidden" role="region" aria-label="Éditeur du bandeau">
+    <h3>Modifier le texte</h3>
+    <textarea id="editor" aria-label="Zone de texte du bandeau"></textarea>
+
+    <label for="speed">Vitesse du défilement (s) : <span id="speedValue">15</span></label>
+    <input id="speed" type="range" min="5" max="60" value="15">
+
+    <div class="controls">
+      <button id="updateBtn">Mettre à jour</button>
+      <button id="resetBtn" class="secondary">Réinitialiser</button>
+    </div>
+  </div>
+
+  <script>
+    // Stockage et valeurs par défaut
+    const STORAGE_KEY_TEXT = 'bandeau_text';
+    const STORAGE_KEY_SPEED = 'bandeau_speed';
+    
+    // NOUVEAU: Remplacement de l'emoji ✅ par une icône SVG bleue
+    const CHECKMARK_BLUE_SVG = '<svg class="blue-check-svg" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+
+    const defaultMessages = [
+      CHECKMARK_BLUE_SVG + 'Portez vos Équipements de Protection',
+      CHECKMARK_BLUE_SVG + 'Suivez les instructions du personnel',
+      CHECKMARK_BLUE_SVG + 'Ne pas courir',
+      CHECKMARK_BLUE_SVG + 'Respectez les zones sécurisées',
+      CHECKMARK_BLUE_SVG + 'Prévenez immédiatement en cas d’incident',
+      CHECKMARK_BLUE_SVG + 'Merci de votre coopération'
+    ];
+
+    // Code d'accès
+    const ACCESS_CODE = '7702';
+
+    // Utilitaires
+    function textToHtml(text){ 
+        // Remplace l'emoji brut ✅ de la textarea par l'icône SVG bleue
+        let html = text.replace(/✅/g, CHECKMARK_BLUE_SVG);
+        // Remplace les sauts de ligne par des <br> pour l'affichage
+        return html.replace(/\r\n|\r|\n/g, '<br>'); 
+    }
+    function updateScrollFromText(text){ document.getElementById('scroll').innerHTML = textToHtml(text); }
+    function setScrollDuration(seconds){ document.getElementById('scroll').style.animationDuration = seconds + 's'; }
+
+    function isPanelVisible(panel){
+      return window.getComputedStyle(panel).display !== 'none';
+    }
+
+    // Bascule de l'éditeur avec protection par code
+    function toggleEditorPanel(){
+      const panel = document.querySelector('.editor-panel');
+      const btn = document.getElementById('togglePanel');
+      const currentlyVisible = isPanelVisible(panel);
+
+      if (!currentlyVisible) {
+        const userCode = prompt('Entrez le code pour accéder à l’éditeur :');
+        if (userCode !== ACCESS_CODE) {
+          alert('Code incorrect');
+          return; 
+        }
+        panel.classList.remove('editor-hidden');
+        btn.textContent = 'Cacher l’éditeur';
+      } else {
+        panel.classList.add('editor-hidden');
+        btn.textContent = 'Afficher l’éditeur';
+      }
+    }
+
+    // Fonctions plein écran (inchangées)
+    let isInPseudoFullscreen = false;
+    function enterPseudoFullscreen(){ document.documentElement.classList.add('pseudo-fullscreen'); isInPseudoFullscreen = true; document.getElementById('fullscreenBtn').textContent = 'Quitter plein écran'; }
+    function exitPseudoFullscreen(){ document.documentElement.classList.remove('pseudo-fullscreen'); isInPseudoFullscreen = false; document.getElementById('fullscreenBtn').textContent = 'Plein écran'; }
+    function enterFullscreenWithFallback(){ if (document.fullscreenEnabled) { document.documentElement.requestFullscreen().catch(()=>enterPseudoFullscreen()); } else enterFullscreenWithFallback(); }
+    function exitFullscreenWithFallback(){ if (document.fullscreenElement) { document.exitFullscreen().catch(()=>exitFullscreenWithFallback()); } else exitFullscreenWithFallback(); }
+
+    // Initialisation
+    document.querySelector('.editor-panel').classList.add('editor-hidden');
+    document.getElementById('togglePanel').textContent = 'Afficher l’éditeur';
+    document.addEventListener('DOMContentLoaded', ()=>{
+      const panel = document.querySelector('.editor-panel');
+      const toggleBtn = document.getElementById('togglePanel');
+      const editor = document.getElementById('editor');
+
+      // Préparation du texte par défaut pour la TEXTAREA (avec l'emoji simple ✅)
+      const defaultTextForEditor = defaultMessages.map(msg => msg.replace(CHECKMARK_BLUE_SVG, '✅')).join('\n\n');
+
+      // Chargement du texte et nettoyage du HTML stocké
+      const savedText = localStorage.getItem(STORAGE_KEY_TEXT);
+      // Nettoyage de l'ancienne version HTML pour afficher l'emoji simple dans l'éditeur
+      const cleanedSavedText = savedText ? savedText.replace(/<svg[^>]*>[\s\S]*?<\/svg>/g, '✅') : defaultTextForEditor;
+      
+      editor.value = cleanedSavedText;
+      updateScrollFromText(cleanedSavedText);
+
+      // Chargement de la vitesse
+      const savedSpeed = localStorage.getItem(STORAGE_KEY_SPEED);
+      const initialSpeed = savedSpeed ? parseInt(savedSpeed,10) : 15;
+      document.getElementById('speed').value = initialSpeed;
+      document.getElementById('speedValue').textContent = initialSpeed;
+      setScrollDuration(initialSpeed);
+
+      if (!isPanelVisible(panel)) {
+        panel.classList.add('editor-hidden');
+        toggleBtn.textContent = 'Afficher l’éditeur';
+      } else {
+        toggleBtn.textContent = 'Cacher l’éditeur';
+      }
+
+      // Événements
+      document.getElementById('updateBtn').addEventListener('click', ()=>{ 
+          const text = editor.value; 
+          updateScrollFromText(text); 
+          localStorage.setItem(STORAGE_KEY_TEXT, text); 
+      });
+      
+      document.getElementById('resetBtn').addEventListener('click', ()=>{ 
+          const initial = defaultTextForEditor; 
+          editor.value = initial; 
+          updateScrollFromText(initial); 
+          document.getElementById('speed').value = 15; 
+          document.getElementById('speedValue').textContent = 15; 
+          setScrollDuration(15); 
+          localStorage.setItem(STORAGE_KEY_TEXT, initial); 
+          localStorage.setItem(STORAGE_KEY_SPEED, '15'); 
+      });
+
+      document.getElementById('togglePanel').addEventListener('click', toggleEditorPanel);
+      document.getElementById('speed').addEventListener('input', (e)=>{ const val = e.target.value; document.getElementById('speedValue').textContent = val; setScrollDuration(val); localStorage.setItem(STORAGE_KEY_SPEED, String(val)); });
+      document.getElementById('editor').addEventListener('keydown', (e)=>{ 
+          if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { 
+              const text = editor.value; 
+              updateScrollFromText(text); 
+              localStorage.setItem(STORAGE_KEY_TEXT, text); 
+          } 
+      });
+
+      document.getElementById('fullscreenBtn').addEventListener('click', ()=>{ if (document.fullscreenElement || isInPseudoFullscreen) exitFullscreenWithFallback(); else enterFullscreenWithFallback(); });
+      document.addEventListener('fullscreenchange', ()=>{ document.getElementById('fullscreenBtn').textContent = document.fullscreenElement ? 'Quitter plein écran' : 'Plein écran'; });
+      document.addEventListener('keydown', (e)=>{ if (e.key === 'Escape' && isInPseudoFullscreen) exitPseudoFullscreen(); });
+    });
+  </script>
+</body>
+</html>
