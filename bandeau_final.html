@@ -2,18 +2,46 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <title>Bandeau défilant modifiable</title>
+  <title>Bandeau défilant (5cm - Final)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     /* Styles généraux et couleurs */
     :root { 
       --panel-bg: rgba(0,0,0,0.75); 
-      --accent: #00BFFF; /* Bleu vif pour les boutons, le gyrophare et les coches */
+      --accent: #00BFFF; /* Couleur fixe utilisée pour l'interface */
       --gyrophare-glow: rgba(0, 191, 255, 1);
-      --hex-color: #0d2836; /* Couleur du filet hexagonal foncé */
+      --hex-color: #0d2836; 
+      --scroll-text-color: white; /* Couleur du texte principal (modifiable) */
+      
+      /* Couleurs pour les statuts */
+      --status-red: #FF4500;
+      --status-yellow: #FFFF00;
+      --status-blue: #00BFFF;
+      --status-white: #FFFFFF; /* NOUVEAU: Couleur pour la réinitialisation */
+    }
+
+    /* Classes CSS pour le texte coloré */
+    .status-red { color: var(--status-red); font-weight: bold; }
+    .status-yellow { color: var(--status-yellow); font-weight: bold; }
+    .status-blue { color: var(--status-blue); font-weight: bold; }
+    .status-white { color: var(--status-white); font-weight: normal; } /* NOUVEAU: Remet la couleur blanche */
+
+    /* Style de l'éditeur contenteditable */
+    #editor {
+        min-height: 100px;
+        border: 1px solid #444;
+        padding: 10px;
+        margin-bottom: 10px;
+        border-radius: 4px;
+        white-space: pre-wrap; /* Conserve le formatage des sauts de ligne */
+        overflow-y: auto;
+        color: white; /* Important pour l'éditeur */
+        background-color: #111;
+        font-family: Arial, sans-serif;
+        font-size: 1em;
     }
     
-    /* FOND D'ÉCRAN HEXAGONAL */
+    /* FOND D'ÉCRAN HEXAGONAL (vue normale) */
     body { 
         background: 
             linear-gradient(217deg, rgba(0,0,0,0.8), rgba(0,0,0,0.1) 70.7%),
@@ -23,174 +51,310 @@
         color: white; 
         font-size: 2rem; 
         margin: 0; 
-        overflow: hidden; 
         font-family: Arial, sans-serif; 
         position: relative;
-        /* Ajout du motif hexagonal via background-image */
         background-image: 
             linear-gradient(to right, var(--hex-color) 1px, transparent 1px),
             linear-gradient(to bottom, var(--hex-color) 1px, transparent 1px);
         background-size: 50px 50px; 
         box-shadow: inset 0 0 100px rgba(0, 191, 255, 0.1);
+        margin-bottom: 5cm; 
     }
     
-    .container { height: 100vh; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
-    .scroll { animation: verticalScroll 15s linear infinite; white-space: pre-line; text-align: center; max-width: 80ch; }
-    @keyframes verticalScroll { 0% { transform: translateY(100%); } 100% { transform: translateY(-100%); } }
-
-    .editor-panel { position: fixed; top: 20px; left: 20px; background: var(--panel-bg); padding: 14px; border-radius: 12px; width: 320px; font-size: 1rem; box-shadow: 0 6px 18px rgba(0,0,0,0.6); color: #fff; z-index: 999; }
-    .editor-panel h3 { margin: 0 0 8px 0; font-size: 1.1rem }
-    .editor-panel textarea { width: 100%; height: 180px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); padding: 8px; background: rgba(255,255,255,0.02); color: #fff; }
-    .editor-panel .controls { display: flex; gap: 8px; margin-top: 10px }
-    .editor-panel button { flex: 1; padding: 8px; border-radius: 8px; border: none; cursor: pointer; background: var(--accent); color: #000; font-weight: 600; }
-    .editor-panel button.secondary { background: transparent; border: 1px solid rgba(255,255,255,0.12); color: #fff; }
-    .editor-panel input[type=range] { width: 100% }
-
-    .action-btn { position: fixed; right: 20px; padding: 10px 14px; border-radius: 8px; border: none; cursor: pointer; background: var(--accent); color: #000; font-weight: 600; z-index: 999; }
-
-    /* Pseudo-fullscreen fallback */
-    .pseudo-fullscreen .container { position: fixed !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; display: flex !important; align-items: center !important; justify-content: center !important; background: black; z-index: 2147483646; }
-    .pseudo-fullscreen .editor-panel { display: none !important }
-    .pseudo-fullscreen .scroll { font-size: 2.4rem; }
-    .editor-hidden { display: none !important; }
-
-    /* Styles des gyrophares (Grand Flash Lumineux 60vw) */
-    .gyrophare-wrapper {
+    /* Conteneur du bandeau (positionné en bas en vue normale) */
+    .container { 
         position: fixed; 
-        bottom: 20px; 
-        left: 20px; 
-        right: 20px; 
-        display: flex;
-        justify-content: space-between; 
-        z-index: 10;
-        perspective: 500px; 
-        perspective-origin: center bottom;
+        bottom: 0; 
+        left: 0;
+        width: 100vw; 
+        height: 5cm; 
+        display: flex; 
+        align-items: center; 
+        justify-content: flex-start; 
+        overflow: hidden; 
+        background: rgba(0,0,0,0.8); 
+        border-top: 3px solid var(--accent); 
+        z-index: 100; 
+        position: relative; 
     }
 
-    .gyrophare {
-        width: 8vw;
-        max-width: 60px;
-        height: 8vw;
-        max-height: 60px;
-        border-radius: 50%;
+    /* Le conteneur d'animation */
+    .scroll { 
+        animation: horizontalScroll 15s linear infinite; 
+        white-space: nowrap; 
+        display: flex;
+        color: var(--scroll-text-color); 
+        transform: translateX(0%); 
+        width: max-content; 
+    }
+
+    /* L'animation de défilement CONTINU (pas de pause) */
+    @keyframes horizontalScroll { 
+        0% { transform: translateX(0%); } 
+        100% { transform: translateX(-50%); } 
+    }
+
+    /* Styles de l'éditeur et des boutons */
+    .editor-panel { position: fixed; top: 20px; left: 20px; background: var(--panel-bg); padding: 14px; border-radius: 12px; width: 320px; font-size: 1rem; box-shadow: 0 6px 18px rgba(0,0,0,0.6); color: #fff; z-index: 999; }
+    .editor-panel input[type="color"] { width: 100px; height: 30px; border: none; padding: 0; border-radius: 4px; vertical-align: middle; }
+    .action-btn { 
+        position: fixed; 
+        right: 20px; 
+        padding: 10px 14px; 
+        border-radius: 8px; 
+        border: none; 
+        cursor: pointer; 
+        background: var(--accent); 
+        color: #000; 
+        font-weight: 600; 
+        z-index: 101; 
+    }
+    
+    /* Styles spécifiques pour les boutons de couleur */
+    .editor-panel .color-apply-btn {
+        flex-grow: 1;
+        padding: 8px 10px;
+        font-size: 0.9em;
+        color: white;
+        border-radius: 4px;
+        cursor: pointer;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        font-weight: bold;
+        text-shadow: 0 0 3px rgba(0,0,0,0.5);
+        white-space: nowrap; 
+    }
+    
+    /* Styles des gyrophares */
+    .gyrophare-wrapper {
+        position: absolute; 
+        top: 0; 
+        left: 0; 
+        right: 0; 
+        height: 100%; 
+        display: flex;
+        align-items: center; 
+        justify-content: space-between; 
+        padding: 0 20px; 
+        z-index: 99; 
+    }
+    .gyrophare { 
+        width: 30px; 
+        max-width: 30px; 
+        height: 30px; 
+        max-height: 30px;
+        border-radius: 50%; 
         background-color: transparent; 
         animation: none; 
-        position: relative;
+        position: relative; 
         box-shadow: none; 
+        z-index: 3; 
     }
-    
     .gyrophare::before { content: ''; display: none; }
-
-    /* Le halo de lumière projeté sur l'environnement (TAILLE 60VW) */
-    .gyrophare::after {
-        content: '';
-        position: fixed;
-        width: 60vw;
-        height: 60vw;
-        border-radius: 50%;
-        bottom: 10px;
-        background: radial-gradient(circle, var(--gyrophare-glow) 0%, rgba(0, 0, 0, 0) 60%);
+    
+    .gyrophare::after { 
+        content: ''; 
+        position: absolute; 
+        width: 60vw; 
+        height: 60vw; 
+        border-radius: 50%; 
+        background: radial-gradient(circle, var(--gyrophare-glow) 0%, rgba(0, 0, 0, 0) 60%); 
         opacity: 0; 
-        z-index: -1;
+        z-index: 2; 
+        top: 50%; 
+        transform: translateY(-50%); 
+    }
+    .gyrophare-wrapper > .gyrophare:first-child::after { 
+        left: 20px; 
+        transform: translate(-50%, -50%); 
+    } 
+    .gyrophare-wrapper > .gyrophare:last-child::after { 
+        right: 20px; 
+        transform: translate(50%, -50%); 
+    } 
+    
+    @keyframes flash-opacity { 0%, 30% { opacity: 0; } 50% { opacity: 0.6; } 50.1%, 100% { opacity: 0; } }
+    .gyrophare::after { animation: flash-opacity 0.8s infinite alternate; }
+    .gyrophare-wrapper > .gyrophare:last-child::after { animation-delay: 0.4s; }
+    .blue-check-svg { height: 1.2em; width: 1.2em; vertical-align: middle; margin: 0 15px; display: inline-block; fill: var(--accent); }
+
+    /* Conteneur du contenu intérieur du défilement */
+    .scroll-content {
+        white-space: nowrap;
+        display: flex;
+        width: max-content; 
     }
     
-    /* Positionnement de la lueur projetée (AJUSTÉ POUR 60VW) */
-    .gyrophare-wrapper > .gyrophare:first-child::after { left: calc(20px + 3vw - 30vw); }
-    .gyrophare-wrapper > .gyrophare:last-child::after { right: calc(20px + 3vw - 30vw); }
+    /* ---------------------------------------------------------------------- */
+    /* Configuration du mode Pseudo Plein écran (Réduction à 5cm) */
+    /* ---------------------------------------------------------------------- */
 
-
-    /* Animation du flash sur la lueur projetée */
-    @keyframes flash-opacity {
-        0%, 30% { opacity: 0; }
-        50% { opacity: 0.6; } 
-        50.1%, 100% { opacity: 0; }
+    .pseudo-fullscreen {
+        overflow: hidden !important; 
+    }
+    .pseudo-fullscreen body {
+        background: transparent !important; 
+        margin-bottom: 0 !important; 
+        height: 100vh; 
     }
     
-    .gyrophare::after {
-        animation: flash-opacity 0.8s infinite alternate;
+    /* 1. Cache TOUT ce qui n'est pas un script ou le bandeau ou les boutons */
+    .pseudo-fullscreen body > *:not(.container):not([id="togglePanel"]):not([id="fullscreenBtn"]):not(script) { 
+        display: none !important; 
     }
 
-    /* Décalage pour le gyrophare droit (pour l'alternance) */
-    .gyrophare-wrapper > .gyrophare:last-child::after {
-        animation-delay: 0.4s; 
+    /* 2. Révèle et positionne les boutons d'action */
+    .pseudo-fullscreen #togglePanel,
+    .pseudo-fullscreen #fullscreenBtn {
+        display: block !important; 
+        z-index: 101 !important; 
     }
-    /* Style pour l'icône SVG de la coche */
-    .blue-check-svg { 
-        height: 1.2em; 
-        width: 1.2em; 
-        vertical-align: middle;
-        margin-right: 15px;
-        display: inline-block;
-        fill: var(--accent); /* Utilise la couleur accent (bleu) */
+
+    /* 3. Révèle et repositionne le BANDEAU (container) en HAUT avec une hauteur de 5cm */
+    .pseudo-fullscreen .container { 
+        display: flex !important; 
+        position: fixed !important; 
+        top: 0 !important; 
+        bottom: auto !important; 
+        left: 0 !important; 
+        width: 100% !important; 
+        height: 5cm !important; 
+        background: black !important; 
+        z-index: 100 !important; 
+        border-top: none !important; 
+        border-bottom: 3px solid var(--accent) !important; 
     }
+    .pseudo-fullscreen .scroll { 
+        font-size: 2.2rem; 
+    }
+
+    /* Classe de masquage de l'éditeur (pour la logique JS) */
+    .editor-hidden { display: none !important; }
 
   </style>
 </head>
 <body>
-  <div class="gyrophare-wrapper">
-    <div class="gyrophare"></div>
-    <div class="gyrophare"></div>
-  </div>
 
   <div class="container">
-    <div id="scroll" class="scroll" aria-live="polite"></div>
+    <div class="gyrophare-wrapper">
+      <div class="gyrophare"></div>
+      <div class="gyrophare"></div>
+    </div>
+    
+    <div id="scroll" class="scroll" aria-live="polite">
+        <div id="scrollContent" class="scroll-content"></div>
+    </div>
   </div>
 
   <button id="togglePanel" class="action-btn" style="top:20px;">Cacher l’éditeur</button>
-  <button id="fullscreenBtn" class="action-btn" style="top:70px;">Plein écran</button>
+  <button id="fullscreenBtn" class="action-btn" style="top:70px;">Mode Affichage Bando</button>
 
   <div class="editor-panel editor-hidden" role="region" aria-label="Éditeur du bandeau">
     <h3>Modifier le texte</h3>
-    <textarea id="editor" aria-label="Zone de texte du bandeau"></textarea>
+    
+    <label for="editor">Texte à afficher :</label>
+    <div id="editor" contenteditable="true" aria-label="Zone de texte du bandeau"></div>
 
-    <label for="speed">Vitesse du défilement (s) : <span id="speedValue">15</span></label>
-    <input id="speed" type="range" min="5" max="60" value="15">
+    <label for="color">Couleur du texte principal :</label>
+    <input id="color" type="color" value="#FFFFFF"> 
+    <br><br>
+
+    <h4>Colorer la sélection (Mode Word) :</h4>
+    
+    <div style="display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 10px;">
+        <button id="redBtn" class="color-apply-btn" style="background-color: var(--status-red);">🔴 Rouge</button>
+        <button id="yellowBtn" class="color-apply-btn" style="background-color: var(--status-yellow); color: #000;">🟡 Jaune</button>
+        <button id="blueBtn" class="color-apply-btn" style="background-color: var(--status-blue);">🔵 Bleu</button>
+        <button id="whiteBtn" class="color-apply-btn" style="background-color: #555; color: white;">⚪ Blanc</button>
+    </div>
+    <p style="font-size: 0.8em; border-left: 2px solid var(--accent); padding-left: 10px; margin-top: 10px; display: none;">
+        1. **Surlignez** le mot dans la zone d'édition.<br>
+        2. **Cliquez** sur une couleur. Le bouton **Blanc** rétablit la couleur par défaut.
+    </p>
+
+    <label for="speed">Vitesse du défilement (s) : <span id="speedValue">5</span></label>
+    <input id="speed" type="range" min="3" max="60" value="5">
 
     <div class="controls">
       <button id="updateBtn">Mettre à jour</button>
-      <button id="resetBtn" class="secondary">Réinitialiser</button>
+      <button id="resetBtn" class="secondary">Réinitialiser tout</button>
     </div>
   </div>
 
   <script>
-    // Stockage et valeurs par défaut
-    const STORAGE_KEY_TEXT = 'bandeau_text';
+    const STORAGE_KEY_TEXT = 'bandeau_html_content'; 
     const STORAGE_KEY_SPEED = 'bandeau_speed';
+    const STORAGE_KEY_COLOR = 'bandeau_color'; 
     
-    // NOUVEAU: Remplacement de l'emoji ✅ par une icône SVG bleue
-    const CHECKMARK_BLUE_SVG = '<svg class="blue-check-svg" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+    const CHECKMARK_BLUE_SVG_HTML = '<svg class="blue-check-svg" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+    const DEFAULT_COLOR = '#FFFFFF';
 
-    const defaultMessages = [
-      CHECKMARK_BLUE_SVG + 'Portez vos Équipements de Protection',
-      CHECKMARK_BLUE_SVG + 'Suivez les instructions du personnel',
-      CHECKMARK_BLUE_SVG + 'Ne pas courir',
-      CHECKMARK_BLUE_SVG + 'Respectez les zones sécurisées',
-      CHECKMARK_BLUE_SVG + 'Prévenez immédiatement en cas d’incident',
-      CHECKMARK_BLUE_SVG + 'Merci de votre coopération'
-    ];
+    // Messages par défaut au format HTML
+    const defaultMessagesHTML = `
+      ${CHECKMARK_BLUE_SVG_HTML} Engin : <span class="status-red">néant</span><br><br>
+      ${CHECKMARK_BLUE_SVG_HTML} Rue barrée : <span class="status-yellow">néant</span><br><br>
+      ${CHECKMARK_BLUE_SVG_HTML} Divers : <span class="status-blue">néant</span><br><br>
+      ${CHECKMARK_BLUE_SVG_HTML} Manoeuvre: néant<br><br>
+      ${CHECKMARK_BLUE_SVG_HTML} Sport:<br><br>
+      ${CHECKMARK_BLUE_SVG_HTML} Merci de votre coopération
+    `;
 
-    // Code d'accès
     const ACCESS_CODE = '7702';
-
-    // Utilitaires
-    function textToHtml(text){ 
-        // Remplace l'emoji brut ✅ de la textarea par l'icône SVG bleue
-        let html = text.replace(/✅/g, CHECKMARK_BLUE_SVG);
-        // Remplace les sauts de ligne par des <br> pour l'affichage
-        return html.replace(/\r\n|\r|\n/g, '<br>'); 
+    const root = document.documentElement; 
+    
+    /* Applique une classe CSS à la sélection (Utilisée pour toutes les couleurs, y compris Blanc) */
+    function applyColorClassToSelection(className) {
+        // Enlève toutes les classes de couleur existantes avant d'appliquer la nouvelle
+        // Cela garantit que la couleur précédente est supprimée.
+        document.execCommand('removeFormat', false, null);
+        
+        // Utilise execCommand('insertHTML') pour appliquer le span de couleur
+        document.execCommand('insertHTML', false, `<span class="${className}">${document.getSelection()}</span>`);
+        
+        document.getElementById('updateBtn').click();
     }
-    function updateScrollFromText(text){ document.getElementById('scroll').innerHTML = textToHtml(text); }
-    function setScrollDuration(seconds){ document.getElementById('scroll').style.animationDuration = seconds + 's'; }
+
+    /* Fonction qui prépare le HTML pour le bandeau défilant */
+    function prepareScrollContent(htmlContent){ 
+        // 1. Remplace les <br> par un espace pour le défilement
+        let cleanContent = htmlContent.replace(/<br>/g, ' ');
+
+        // 2. Supprime les éléments de bloc (div/p) ajoutés par l'éditeur contenteditable
+        cleanContent = cleanContent.replace(/<div>/g, ' ').replace(/<\/div>/g, '');
+        cleanContent = cleanContent.replace(/<p>/g, ' ').replace(/<\/p>/g, '');
+        
+        // 3. Normalise les espaces multiples
+        cleanContent = cleanContent.replace(/\s+/g, ' ');
+
+        // 4. Utilise un séparateur visuel entre les messages
+        const separator = '<span style="margin: 0 50px;">***</span>'; 
+        return cleanContent.trim().replace(/\s\s+/g, separator); 
+    }
+
+    function updateScrollFromHtml(htmlContent){ 
+        let rawContent = prepareScrollContent(htmlContent);
+        
+        // Duplication du contenu (2 FOIS) pour un défilement continu
+        let duplicatedContent = rawContent + rawContent;
+
+        document.getElementById('scrollContent').innerHTML = duplicatedContent;
+    }
+    
+    function setScrollDuration(seconds){ 
+        document.getElementById('scroll').style.animationDuration = seconds + 's'; 
+    }
+
+    function setScrollColor(color){
+        root.style.setProperty('--scroll-text-color', color);
+    }
 
     function isPanelVisible(panel){
-      return window.getComputedStyle(panel).display !== 'none';
+      return !panel.classList.contains('editor-hidden');
     }
 
-    // Bascule de l'éditeur avec protection par code
     function toggleEditorPanel(){
       const panel = document.querySelector('.editor-panel');
       const btn = document.getElementById('togglePanel');
-      const currentlyVisible = isPanelVisible(panel);
+      const currentlyVisible = isPanelVisible(panel); 
 
       if (!currentlyVisible) {
         const userCode = prompt('Entrez le code pour accéder à l’éditeur :');
@@ -206,39 +370,70 @@
       }
     }
 
-    // Fonctions plein écran (inchangées)
     let isInPseudoFullscreen = false;
-    function enterPseudoFullscreen(){ document.documentElement.classList.add('pseudo-fullscreen'); isInPseudoFullscreen = true; document.getElementById('fullscreenBtn').textContent = 'Quitter plein écran'; }
-    function exitPseudoFullscreen(){ document.documentElement.classList.remove('pseudo-fullscreen'); isInPseudoFullscreen = false; document.getElementById('fullscreenBtn').textContent = 'Plein écran'; }
-    function enterFullscreenWithFallback(){ if (document.fullscreenEnabled) { document.documentElement.requestFullscreen().catch(()=>enterPseudoFullscreen()); } else enterFullscreenWithFallback(); }
-    function exitFullscreenWithFallback(){ if (document.fullscreenElement) { document.exitFullscreen().catch(()=>exitFullscreenWithFallback()); } else exitFullscreenWithFallback(); }
-
-    // Initialisation
+    function enterPseudoFullscreen(){ 
+        document.documentElement.classList.add('pseudo-fullscreen'); 
+        isInPseudoFullscreen = true; 
+        document.getElementById('fullscreenBtn').textContent = 'Quitter mode Bando'; 
+    }
+    function exitPseudoFullscreen(){ 
+        document.documentElement.classList.remove('pseudo-fullscreen'); 
+        isInPseudoFullscreen = false; 
+        document.getElementById('fullscreenBtn').textContent = 'Mode Affichage Bando'; 
+    }
+    
+    function toggleFullscreen(){ 
+        if (isInPseudoFullscreen) {
+            exitPseudoFullscreen();
+        } else {
+            enterPseudoFullscreen(); 
+        }
+    }
+    
     document.querySelector('.editor-panel').classList.add('editor-hidden');
     document.getElementById('togglePanel').textContent = 'Afficher l’éditeur';
     document.addEventListener('DOMContentLoaded', ()=>{
       const panel = document.querySelector('.editor-panel');
       const toggleBtn = document.getElementById('togglePanel');
       const editor = document.getElementById('editor');
+      const colorInput = document.getElementById('color'); 
+      const redBtn = document.getElementById('redBtn');
+      const yellowBtn = document.getElementById('yellowBtn');
+      const blueBtn = document.getElementById('blueBtn');
+      const whiteBtn = document.getElementById('whiteBtn'); 
 
-      // Préparation du texte par défaut pour la TEXTAREA (avec l'emoji simple ✅)
-      const defaultTextForEditor = defaultMessages.map(msg => msg.replace(CHECKMARK_BLUE_SVG, '✅')).join('\n\n');
-
-      // Chargement du texte et nettoyage du HTML stocké
-      const savedText = localStorage.getItem(STORAGE_KEY_TEXT);
-      // Nettoyage de l'ancienne version HTML pour afficher l'emoji simple dans l'éditeur
-      const cleanedSavedText = savedText ? savedText.replace(/<svg[^>]*>[\s\S]*?<\/svg>/g, '✅') : defaultTextForEditor;
+      // CHARGEMENT DU HTML
+      const savedHtml = localStorage.getItem(STORAGE_KEY_TEXT);
+      let htmlToLoad = savedHtml;
       
-      editor.value = cleanedSavedText;
-      updateScrollFromText(cleanedSavedText);
+      // Heuristique de migration pour les anciens formats (texte brut ou tags personnalisés)
+      if (savedHtml && !savedHtml.includes('span')) {
+          htmlToLoad = savedHtml.replace(/✅/g, CHECKMARK_BLUE_SVG_HTML).replace(/\n\n/g, '<br><br>');
+          htmlToLoad = htmlToLoad.replace(/<c-red>(.*?)<\/c-red>/g, '<span class="status-red">$1</span>');
+          htmlToLoad = htmlToLoad.replace(/<c-yellow>(.*?)<\/c-yellow>/g, '<span class="status-yellow">$1</span>');
+          htmlToLoad = htmlToLoad.replace(/<c-blue>(.*?)<\/c-blue>/g, '<span class="status-blue">$1</span>');
+      } else if (!savedHtml) {
+          htmlToLoad = defaultMessagesHTML;
+      }
+      
+      editor.innerHTML = htmlToLoad;
+      updateScrollFromHtml(editor.innerHTML);
 
-      // Chargement de la vitesse
+
+      // CHARGEMENT DE LA VITESSE
       const savedSpeed = localStorage.getItem(STORAGE_KEY_SPEED);
-      const initialSpeed = savedSpeed ? parseInt(savedSpeed,10) : 15;
+      const initialSpeed = savedSpeed ? parseInt(savedSpeed,10) : 5;
       document.getElementById('speed').value = initialSpeed;
       document.getElementById('speedValue').textContent = initialSpeed;
       setScrollDuration(initialSpeed);
 
+      // CHARGEMENT DE LA COULEUR PRINCIPALE
+      const savedColor = localStorage.getItem(STORAGE_KEY_COLOR);
+      const initialColor = savedColor || DEFAULT_COLOR;
+      colorInput.value = initialColor;
+      setScrollColor(initialColor);
+      
+      
       if (!isPanelVisible(panel)) {
         panel.classList.add('editor-hidden');
         toggleBtn.textContent = 'Afficher l’éditeur';
@@ -246,36 +441,76 @@
         toggleBtn.textContent = 'Cacher l’éditeur';
       }
 
-      // Événements
       document.getElementById('updateBtn').addEventListener('click', ()=>{ 
-          const text = editor.value; 
-          updateScrollFromText(text); 
-          localStorage.setItem(STORAGE_KEY_TEXT, text); 
+          const html = editor.innerHTML; 
+          const color = colorInput.value; 
+          updateScrollFromHtml(html); 
+          setScrollColor(color); 
+          localStorage.setItem(STORAGE_KEY_TEXT, html); 
+          localStorage.setItem(STORAGE_KEY_COLOR, color); 
       });
       
       document.getElementById('resetBtn').addEventListener('click', ()=>{ 
-          const initial = defaultTextForEditor; 
-          editor.value = initial; 
-          updateScrollFromText(initial); 
-          document.getElementById('speed').value = 15; 
-          document.getElementById('speedValue').textContent = 15; 
-          setScrollDuration(15); 
-          localStorage.setItem(STORAGE_KEY_TEXT, initial); 
-          localStorage.setItem(STORAGE_KEY_SPEED, '15'); 
+          const initialHtml = defaultMessagesHTML; 
+          const initialSpeed = 5;
+          const initialColor = DEFAULT_COLOR;
+
+          editor.innerHTML = initialHtml; 
+          document.getElementById('speed').value = initialSpeed; 
+          document.getElementById('speedValue').textContent = initialSpeed; 
+          colorInput.value = initialColor;
+
+          updateScrollFromHtml(initialHtml); 
+          setScrollDuration(initialSpeed); 
+          setScrollColor(initialColor);
+          
+          localStorage.setItem(STORAGE_KEY_TEXT, initialHtml); 
+          localStorage.setItem(STORAGE_KEY_SPEED, String(initialSpeed)); 
+          localStorage.setItem(STORAGE_KEY_COLOR, initialColor); 
       });
 
       document.getElementById('togglePanel').addEventListener('click', toggleEditorPanel);
-      document.getElementById('speed').addEventListener('input', (e)=>{ const val = e.target.value; document.getElementById('speedValue').textContent = val; setScrollDuration(val); localStorage.setItem(STORAGE_KEY_SPEED, String(val)); });
-      document.getElementById('editor').addEventListener('keydown', (e)=>{ 
+      
+      // Écouteurs pour les boutons de couleur (Mode Word)
+      redBtn.addEventListener('click', (e) => { e.preventDefault(); applyColorClassToSelection('status-red'); });
+      yellowBtn.addEventListener('click', (e) => { e.preventDefault(); applyColorClassToSelection('status-yellow'); });
+      blueBtn.addEventListener('click', (e) => { e.preventDefault(); applyColorClassToSelection('status-blue'); });
+      
+      // Écouteur pour le bouton Blanc
+      whiteBtn.addEventListener('click', (e) => { e.preventDefault(); applyColorClassToSelection('status-white'); }); 
+
+      
+      // GESTION DE LA VITESSE
+      document.getElementById('speed').addEventListener('input', (e)=>{ 
+          const val = e.target.value; 
+          document.getElementById('speedValue').textContent = val; 
+          setScrollDuration(val); 
+          localStorage.setItem(STORAGE_KEY_SPEED, String(val)); 
+      });
+
+      // GESTION DE LA COULEUR PRINCIPALE
+      colorInput.addEventListener('input', (e)=>{ 
+          const val = e.target.value; 
+          setScrollColor(val); 
+          localStorage.setItem(STORAGE_KEY_COLOR, val); 
+      });
+
+      // RACCOURCI CLAVIER
+      document.addEventListener('keydown', (e)=>{ 
           if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { 
-              const text = editor.value; 
-              updateScrollFromText(text); 
-              localStorage.setItem(STORAGE_KEY_TEXT, text); 
+              const html = editor.innerHTML; 
+              const color = colorInput.value;
+              updateScrollFromHtml(html); 
+              setScrollColor(color);
+              localStorage.setItem(STORAGE_KEY_TEXT, html); 
+              localStorage.setItem(STORAGE_KEY_COLOR, color);
+              editor.blur(); 
           } 
       });
 
-      document.getElementById('fullscreenBtn').addEventListener('click', ()=>{ if (document.fullscreenElement || isInPseudoFullscreen) exitFullscreenWithFallback(); else enterFullscreenWithFallback(); });
-      document.addEventListener('fullscreenchange', ()=>{ document.getElementById('fullscreenBtn').textContent = document.fullscreenElement ? 'Quitter plein écran' : 'Plein écran'; });
+      document.getElementById('fullscreenBtn').addEventListener('click', toggleFullscreen); 
+
+      // Écouteur pour la touche Échap
       document.addEventListener('keydown', (e)=>{ if (e.key === 'Escape' && isInPseudoFullscreen) exitPseudoFullscreen(); });
     });
   </script>
