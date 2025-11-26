@@ -11,20 +11,15 @@
       --accent: #00BFFF; /* Couleur fixe utilisée pour l'interface */
       --gyrophare-glow: rgba(0, 191, 255, 1);
       --hex-color: #0d2836; 
-      --scroll-text-color: white; /* Couleur du texte principal (modifiable) */
-      
-      /* Couleurs pour les statuts */
-      --status-red: #FF4500;
-      --status-yellow: #FFFF00;
-      --status-blue: #00BFFF;
-      --status-white: #FFFFFF; /* NOUVEAU: Couleur pour la réinitialisation */
+      /* Valeurs par défaut lues dans la section script (ne plus utiliser les variables CSS pour les défauts) */
+      --scroll-text-color: white; 
     }
 
     /* Classes CSS pour le texte coloré */
     .status-red { color: var(--status-red); font-weight: bold; }
     .status-yellow { color: var(--status-yellow); font-weight: bold; }
     .status-blue { color: var(--status-blue); font-weight: bold; }
-    .status-white { color: var(--status-white); font-weight: normal; } /* NOUVEAU: Remet la couleur blanche */
+    .status-white { color: var(--status-white); font-weight: normal; }
 
     /* Style de l'éditeur contenteditable */
     #editor {
@@ -33,9 +28,9 @@
         padding: 10px;
         margin-bottom: 10px;
         border-radius: 4px;
-        white-space: pre-wrap; /* Conserve le formatage des sauts de ligne */
+        white-space: pre-wrap;
         overflow-y: auto;
-        color: white; /* Important pour l'éditeur */
+        color: white;
         background-color: #111;
         font-family: Arial, sans-serif;
         font-size: 1em;
@@ -271,8 +266,8 @@
         2. **Cliquez** sur une couleur. Le bouton **Blanc** rétablit la couleur par défaut.
     </p>
 
-    <label for="speed">Vitesse du défilement (s) : <span id="speedValue">5</span></label>
-    <input id="speed" type="range" min="3" max="60" value="5">
+    <label for="speed">Vitesse du défilement (s) : <span id="speedValue">15</span></label>
+    <input id="speed" type="range" min="3" max="60" value="15">
 
     <div class="controls">
       <button id="updateBtn">Mettre à jour</button>
@@ -281,14 +276,12 @@
   </div>
 
   <script>
-    const STORAGE_KEY_TEXT = 'bandeau_html_content'; 
-    const STORAGE_KEY_SPEED = 'bandeau_speed';
-    const STORAGE_KEY_COLOR = 'bandeau_color'; 
-    
+    // --- VARIABLES GLOBALES ---
     const CHECKMARK_BLUE_SVG_HTML = '<svg class="blue-check-svg" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
     const DEFAULT_COLOR = '#FFFFFF';
+    const DEFAULT_SPEED = 15; // Vitesse de défilement par défaut
 
-    // Messages par défaut au format HTML
+    // Messages par défaut (Contenu du fichier HTML)
     const defaultMessagesHTML = `
       ${CHECKMARK_BLUE_SVG_HTML} Engin : <span class="status-red">néant</span><br><br>
       ${CHECKMARK_BLUE_SVG_HTML} Rue barrée : <span class="status-yellow">néant</span><br><br>
@@ -301,41 +294,28 @@
     const ACCESS_CODE = '7702';
     const root = document.documentElement; 
     
+    // --- FONCTIONS D'AFFICHAGE ---
+    
     /* Applique une classe CSS à la sélection (Utilisée pour toutes les couleurs, y compris Blanc) */
     function applyColorClassToSelection(className) {
-        // Enlève toutes les classes de couleur existantes avant d'appliquer la nouvelle
-        // Cela garantit que la couleur précédente est supprimée.
         document.execCommand('removeFormat', false, null);
-        
-        // Utilise execCommand('insertHTML') pour appliquer le span de couleur
         document.execCommand('insertHTML', false, `<span class="${className}">${document.getSelection()}</span>`);
-        
-        document.getElementById('updateBtn').click();
+        // Note: On ne clique PAS sur updateBtn ici pour ne pas avoir de pop-up d'alerte. L'édition est en direct.
     }
 
     /* Fonction qui prépare le HTML pour le bandeau défilant */
     function prepareScrollContent(htmlContent){ 
-        // 1. Remplace les <br> par un espace pour le défilement
         let cleanContent = htmlContent.replace(/<br>/g, ' ');
-
-        // 2. Supprime les éléments de bloc (div/p) ajoutés par l'éditeur contenteditable
         cleanContent = cleanContent.replace(/<div>/g, ' ').replace(/<\/div>/g, '');
         cleanContent = cleanContent.replace(/<p>/g, ' ').replace(/<\/p>/g, '');
-        
-        // 3. Normalise les espaces multiples
         cleanContent = cleanContent.replace(/\s+/g, ' ');
-
-        // 4. Utilise un séparateur visuel entre les messages
         const separator = '<span style="margin: 0 50px;">***</span>'; 
         return cleanContent.trim().replace(/\s\s+/g, separator); 
     }
 
     function updateScrollFromHtml(htmlContent){ 
         let rawContent = prepareScrollContent(htmlContent);
-        
-        // Duplication du contenu (2 FOIS) pour un défilement continu
-        let duplicatedContent = rawContent + rawContent;
-
+        let duplicatedContent = rawContent + rawContent; // Duplication pour défilement continu
         document.getElementById('scrollContent').innerHTML = duplicatedContent;
     }
     
@@ -346,6 +326,8 @@
     function setScrollColor(color){
         root.style.setProperty('--scroll-text-color', color);
     }
+
+    // --- GESTION DE L'INTERFACE ---
 
     function isPanelVisible(panel){
       return !panel.classList.contains('editor-hidden');
@@ -389,128 +371,96 @@
             enterPseudoFullscreen(); 
         }
     }
+
+    // --- LOGIQUE PRINCIPALE ---
     
     document.querySelector('.editor-panel').classList.add('editor-hidden');
     document.getElementById('togglePanel').textContent = 'Afficher l’éditeur';
+
     document.addEventListener('DOMContentLoaded', ()=>{
       const panel = document.querySelector('.editor-panel');
-      const toggleBtn = document.getElementById('togglePanel');
       const editor = document.getElementById('editor');
       const colorInput = document.getElementById('color'); 
+      const speedInput = document.getElementById('speed'); 
+      
       const redBtn = document.getElementById('redBtn');
       const yellowBtn = document.getElementById('yellowBtn');
       const blueBtn = document.getElementById('blueBtn');
       const whiteBtn = document.getElementById('whiteBtn'); 
 
-      // CHARGEMENT DU HTML
-      const savedHtml = localStorage.getItem(STORAGE_KEY_TEXT);
-      let htmlToLoad = savedHtml;
+      // **********************************************
+      // 1. CHARGEMENT INITIAL (Utilise le HTML par défaut, 
+      //    l'éditeur doit contenir le contenu actuel du fichier)
+      // **********************************************
       
-      // Heuristique de migration pour les anciens formats (texte brut ou tags personnalisés)
-      if (savedHtml && !savedHtml.includes('span')) {
-          htmlToLoad = savedHtml.replace(/✅/g, CHECKMARK_BLUE_SVG_HTML).replace(/\n\n/g, '<br><br>');
-          htmlToLoad = htmlToLoad.replace(/<c-red>(.*?)<\/c-red>/g, '<span class="status-red">$1</span>');
-          htmlToLoad = htmlToLoad.replace(/<c-yellow>(.*?)<\/c-yellow>/g, '<span class="status-yellow">$1</span>');
-          htmlToLoad = htmlToLoad.replace(/<c-blue>(.*?)<\/c-blue>/g, '<span class="status-blue">$1</span>');
-      } else if (!savedHtml) {
-          htmlToLoad = defaultMessagesHTML;
-      }
-      
-      editor.innerHTML = htmlToLoad;
+      // Assurez-vous que l'éditeur contient le contenu défini par défaut dans le fichier
+      editor.innerHTML = defaultMessagesHTML; 
       updateScrollFromHtml(editor.innerHTML);
 
-
-      // CHARGEMENT DE LA VITESSE
-      const savedSpeed = localStorage.getItem(STORAGE_KEY_SPEED);
-      const initialSpeed = savedSpeed ? parseInt(savedSpeed,10) : 5;
-      document.getElementById('speed').value = initialSpeed;
-      document.getElementById('speedValue').textContent = initialSpeed;
-      setScrollDuration(initialSpeed);
-
-      // CHARGEMENT DE LA COULEUR PRINCIPALE
-      const savedColor = localStorage.getItem(STORAGE_KEY_COLOR);
-      const initialColor = savedColor || DEFAULT_COLOR;
-      colorInput.value = initialColor;
-      setScrollColor(initialColor);
+      // Initialisation de la vitesse et de la couleur par défaut
+      speedInput.value = DEFAULT_SPEED;
+      document.getElementById('speedValue').textContent = DEFAULT_SPEED;
+      setScrollDuration(DEFAULT_SPEED);
+      colorInput.value = DEFAULT_COLOR;
+      setScrollColor(DEFAULT_COLOR);
       
       
-      if (!isPanelVisible(panel)) {
-        panel.classList.add('editor-hidden');
-        toggleBtn.textContent = 'Afficher l’éditeur';
-      } else {
-        toggleBtn.textContent = 'Cacher l’éditeur';
-      }
-
+      // 2. BOUTON "METTRE À JOUR" : Met à jour l'affichage, mais n'enregistre PAS en ligne.
       document.getElementById('updateBtn').addEventListener('click', ()=>{ 
           const html = editor.innerHTML; 
           const color = colorInput.value; 
+          const speed = speedInput.value;
+          
           updateScrollFromHtml(html); 
           setScrollColor(color); 
-          localStorage.setItem(STORAGE_KEY_TEXT, html); 
-          localStorage.setItem(STORAGE_KEY_COLOR, color); 
+          setScrollDuration(speed);
+          
+          // ALERTE IMPORTANTE POUR LE DÉVELOPPEUR/UTILISATEUR
+          alert("ATTENTION : Le contenu a été mis à jour dans l'affichage, MAIS il n'est PAS sauvegardé en ligne ! Vous devez COPIER le contenu de la zone de texte et l'insérer dans le code du fichier HTML sur GitHub/votre serveur pour rendre la modification permanente.");
       });
       
+      // 3. BOUTON "RÉINITIALISER TOUT" : Remet les valeurs par défaut du fichier
       document.getElementById('resetBtn').addEventListener('click', ()=>{ 
-          const initialHtml = defaultMessagesHTML; 
-          const initialSpeed = 5;
-          const initialColor = DEFAULT_COLOR;
+          editor.innerHTML = defaultMessagesHTML; 
+          speedInput.value = DEFAULT_SPEED; 
+          document.getElementById('speedValue').textContent = DEFAULT_SPEED; 
+          colorInput.value = DEFAULT_COLOR;
 
-          editor.innerHTML = initialHtml; 
-          document.getElementById('speed').value = initialSpeed; 
-          document.getElementById('speedValue').textContent = initialSpeed; 
-          colorInput.value = initialColor;
-
-          updateScrollFromHtml(initialHtml); 
-          setScrollDuration(initialSpeed); 
-          setScrollColor(initialColor);
-          
-          localStorage.setItem(STORAGE_KEY_TEXT, initialHtml); 
-          localStorage.setItem(STORAGE_KEY_SPEED, String(initialSpeed)); 
-          localStorage.setItem(STORAGE_KEY_COLOR, initialColor); 
+          updateScrollFromHtml(defaultMessagesHTML); 
+          setScrollDuration(DEFAULT_SPEED); 
+          setScrollColor(DEFAULT_COLOR);
       });
 
       document.getElementById('togglePanel').addEventListener('click', toggleEditorPanel);
       
-      // Écouteurs pour les boutons de couleur (Mode Word)
+      // 4. Écouteurs pour les boutons de couleur (Mode Word)
       redBtn.addEventListener('click', (e) => { e.preventDefault(); applyColorClassToSelection('status-red'); });
       yellowBtn.addEventListener('click', (e) => { e.preventDefault(); applyColorClassToSelection('status-yellow'); });
       blueBtn.addEventListener('click', (e) => { e.preventDefault(); applyColorClassToSelection('status-blue'); });
-      
-      // Écouteur pour le bouton Blanc
       whiteBtn.addEventListener('click', (e) => { e.preventDefault(); applyColorClassToSelection('status-white'); }); 
 
       
-      // GESTION DE LA VITESSE
-      document.getElementById('speed').addEventListener('input', (e)=>{ 
+      // 5. GESTION DE LA VITESSE (Mis à jour de l'affichage en direct)
+      speedInput.addEventListener('input', (e)=>{ 
           const val = e.target.value; 
           document.getElementById('speedValue').textContent = val; 
           setScrollDuration(val); 
-          localStorage.setItem(STORAGE_KEY_SPEED, String(val)); 
       });
 
-      // GESTION DE LA COULEUR PRINCIPALE
+      // 6. GESTION DE LA COULEUR PRINCIPALE (Mis à jour de l'affichage en direct)
       colorInput.addEventListener('input', (e)=>{ 
-          const val = e.target.value; 
-          setScrollColor(val); 
-          localStorage.setItem(STORAGE_KEY_COLOR, val); 
+          setScrollColor(e.target.value); 
       });
 
-      // RACCOURCI CLAVIER
+      // 7. RACCOURCI CLAVIER (Appelle le bouton "Mettre à jour")
       document.addEventListener('keydown', (e)=>{ 
           if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { 
-              const html = editor.innerHTML; 
-              const color = colorInput.value;
-              updateScrollFromHtml(html); 
-              setScrollColor(color);
-              localStorage.setItem(STORAGE_KEY_TEXT, html); 
-              localStorage.setItem(STORAGE_KEY_COLOR, color);
+              document.getElementById('updateBtn').click(); 
               editor.blur(); 
           } 
       });
 
       document.getElementById('fullscreenBtn').addEventListener('click', toggleFullscreen); 
-
-      // Écouteur pour la touche Échap
       document.addEventListener('keydown', (e)=>{ if (e.key === 'Escape' && isInPseudoFullscreen) exitPseudoFullscreen(); });
     });
   </script>
