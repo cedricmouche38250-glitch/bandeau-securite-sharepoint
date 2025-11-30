@@ -311,7 +311,6 @@
     /* Applique une classe CSS à la sélection (Utilisée pour toutes les couleurs, y compris Blanc) */
     function applyColorClassToSelection(className) {
         // Enlève toutes les classes de couleur existantes avant d'appliquer la nouvelle
-        // Cela garantit que la couleur précédente est supprimée.
         document.execCommand('removeFormat', false, null);
         
         // Utilise execCommand('insertHTML') pour appliquer le span de couleur
@@ -419,8 +418,164 @@
       const savedHtml = localStorage.getItem(STORAGE_KEY_TEXT);
       let htmlToLoad = savedHtml;
       
-      // Heuristique de migration
+      // Heuristique de migration pour les anciens formats (texte brut ou tags personnalisés)
+      if (savedHtml && !savedHtml.includes('span')) {
+          htmlToLoad = savedHtml.replace(/✅/g, CHECKMARK_BLUE_SVG_HTML).replace(/\n\n/g, '<br><br>');
+          htmlToLoad = htmlToLoad.replace(/<c-red>(.*?)<\/c-red>/g, '<span class="status-red">$1</span>');
+          htmlToLoad = htmlToLoad.replace(/<c-yellow>(.*?)<\/c-yellow>/g, '<span class="status-yellow">$1</span>');
+          htmlToLoad = htmlToLoad.replace(/<c-blue>(.*?)<\/c-blue>/g, '<span class="status-blue">$1</span>');
+      } else if (!savedHtml) {
+          htmlToLoad = defaultMessagesHTML;
+      }
+      
+      editor.innerHTML = htmlToLoad;
+      updateScrollFromHtml(editor.innerHTML);
 
 
+      // CHARGEMENT DE LA VITESSE
+      const savedSpeed = localStorage.getItem(STORAGE_KEY_SPEED);
+      const initialSpeed = savedSpeed ? parseInt(savedSpeed,10) : 5;
+      document.getElementById('speed').value = initialSpeed;
+      document.getElementById('speedValue').textContent = initialSpeed;
+      setScrollDuration(initialSpeed);
 
+      // CHARGEMENT DE LA COULEUR PRINCIPALE
+      const savedColor = localStorage.getItem(STORAGE_KEY_COLOR);
+      const initialColor = savedColor || DEFAULT_COLOR;
+      colorInput.value = initialColor;
+      setScrollColor(initialColor);
+      
+      
+      if (!isPanelVisible(panel)) {
+        panel.classList.add('editor-hidden');
+        toggleBtn.textContent = 'Afficher l’éditeur';
+      } else {
+        toggleBtn.textContent = 'Cacher l’éditeur';
+      }
 
+      document.getElementById('updateBtn').addEventListener('click', ()=>{ 
+          const html = editor.innerHTML; 
+          const color = colorInput.value; 
+          updateScrollFromHtml(html); 
+          setScrollColor(color); 
+          localStorage.setItem(STORAGE_KEY_TEXT, html); 
+          localStorage.setItem(STORAGE_KEY_COLOR, color); 
+      });
+      
+      document.getElementById('resetBtn').addEventListener('click', ()=>{ 
+          const initialHtml = defaultMessagesHTML; 
+          const initialSpeed = 5;
+          const initialColor = DEFAULT_COLOR;
+
+          editor.innerHTML = initialHtml; 
+          document.getElementById('speed').value = initialSpeed; 
+          document.getElementById('speedValue').textContent = initialSpeed; 
+          colorInput.value = initialColor;
+
+          updateScrollFromHtml(initialHtml); 
+          setScrollDuration(initialSpeed); 
+          setScrollColor(initialColor);
+          
+          localStorage.setItem(STORAGE_KEY_TEXT, initialHtml); 
+          localStorage.setItem(STORAGE_KEY_SPEED, String(initialSpeed)); 
+          localStorage.setItem(STORAGE_KEY_COLOR, initialColor); 
+      });
+
+      document.getElementById('togglePanel').addEventListener('click', toggleEditorPanel);
+      
+      // Écouteurs pour les boutons de couleur (Mode Word)
+      redBtn.addEventListener('click', (e) => { e.preventDefault(); applyColorClassToSelection('status-red'); });
+      yellowBtn.addEventListener('click', (e) => { e.preventDefault(); applyColorClassToSelection('status-yellow'); });
+      blueBtn.addEventListener('click', (e) => { e.preventDefault(); applyColorClassToSelection('status-blue'); });
+      
+      // Écouteur pour le bouton Blanc
+      whiteBtn.addEventListener('click', (e) => { e.preventDefault(); applyColorClassToSelection('status-white'); }); 
+
+      
+      // GESTION DE LA VITESSE
+      document.getElementById('speed').addEventListener('input', (e)=>{ 
+          const val = e.target.value; 
+          document.getElementById('speedValue').textContent = val; 
+          setScrollDuration(val); 
+          localStorage.setItem(STORAGE_KEY_SPEED, String(val)); 
+      });
+
+      // GESTION DE LA COULEUR PRINCIPALE
+      colorInput.addEventListener('input', (e)=>{ 
+          const val = e.target.value; 
+          setScrollColor(val); 
+          localStorage.setItem(STORAGE_KEY_COLOR, val); 
+      });
+
+      // RACCOURCI CLAVIER
+      document.addEventListener('keydown', (e)=>{ 
+          if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { 
+              const html = editor.innerHTML; 
+              const color = colorInput.value;
+              updateScrollFromHtml(html); 
+              setScrollColor(color);
+              localStorage.setItem(STORAGE_KEY_TEXT, html); 
+              localStorage.setItem(STORAGE_KEY_COLOR, color);
+              editor.blur(); 
+          } 
+      });
+
+      document.getElementById('fullscreenBtn').addEventListener('click', toggleFullscreen); 
+
+      // Écouteur pour la touche Échap
+      document.addEventListener('keydown', (e)=>{ if (e.key === 'Escape' && isInPseudoFullscreen) exitPseudoFullscreen(); });
+      
+      // ----------------------------------------------------------------------------------------------------------------------
+      // LOGIQUE : SAUVEGARDE GITHUB (Connexion au serveur Node.js)
+      // ----------------------------------------------------------------------------------------------------------------------
+      
+      // !!! À MODIFIER !!! Assurez-vous que cette clé est la même que dans votre fichier .env pour API_SECRET
+      const API_SECRET_KEY = 'votre_clé_secrète_de_votre_choix'; 
+      
+      // Définir le chemin où le fichier sera enregistré sur GitHub
+      const GITHUB_FILE_PATH = 'bandeau_de_defilement/content.html'; 
+      const COMMIT_MESSAGE = 'Sauvegarde du bandeau via API web';
+
+      saveButton.addEventListener('click', async () => {
+          statusMessage.textContent = 'Sauvegarde en cours sur GitHub...';
+
+          // 1. Récupérer le contenu formaté de l'éditeur
+          const htmlContent = editor.innerHTML; 
+
+          try {
+              const response = await fetch('http://localhost:3000/save', {
+                  method: 'POST',
+                  headers: {
+                      'Content-Type': 'application/json',
+                      // Le serveur vérifie cette clé pour autoriser la requête
+                      'x-api-secret': API_SECRET_KEY 
+                  },
+                  body: JSON.stringify({
+                      path: GITHUB_FILE_PATH,
+                      content: htmlContent, // Le contenu du bandeau (HTML formaté)
+                      message: COMMIT_MESSAGE
+                  })
+              });
+
+              const data = await response.json();
+
+              if (response.ok && data.ok) {
+                  statusMessage.innerHTML = `✅ Sauvegarde réussie ! <a href="${data.url}" target="_blank">Voir le fichier sur GitHub</a>`;
+              } else {
+                  // Affiche le message d'erreur du serveur
+                  statusMessage.textContent = `❌ Échec: ${data.error || 'Erreur inconnue.'}`;
+                  console.error('Détails de l\'erreur:', data);
+              }
+
+          } catch (error) {
+              // Erreur réseau si le serveur Node.js est éteint
+              statusMessage.textContent = `❌ Erreur de connexion au serveur (port 3000)`;
+              console.error('Erreur Fetch:', error);
+          }
+      });
+      // ----------------------------------------------------------------------------------------------------------------------
+      
+    });
+  </script>
+</body>
+</html>
