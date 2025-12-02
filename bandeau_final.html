@@ -6,9 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <style>
-    /* ------------------ TON CSS ORIGINAL (inchangé) ------------------ */
-    /* (Je ne supprime rien, tout reste identique à ton fichier d'origine) */
-
+    /* Ton CSS complet d’origine */
     :root { 
       --panel-bg: rgba(0,0,0,0.75); 
       --accent: #00BFFF;
@@ -143,7 +141,7 @@
   <button id="togglePanel" class="action-btn" style="top:20px;">Cacher l’éditeur</button>
   <button id="fullscreenBtn" class="action-btn" style="top:70px;">Mode Affichage Bando</button>
 
-  <!-- 🌟 NOUVEAU : Bouton Sauvegarde GitHub -->
+  <!-- 🌟 Bouton Sauvegarde GitHub -->
   <button id="saveToGitBtn" class="action-btn" style="top:120px;">Sauvegarder sur GitHub</button>
 
   <!-- Panneau Éditeur -->
@@ -166,9 +164,7 @@
   </div>
 
   <script>
-    /* TON SCRIPT ORIGINAL (inchangé) */
-    /* + le code GitHub ajouté à la fin */
-
+    /* Ton code JavaScript original */
     const STORAGE_KEY_TEXT = 'bandeau_html_content'; 
     const STORAGE_KEY_SPEED = 'bandeau_speed';
     const STORAGE_KEY_COLOR = 'bandeau_color'; 
@@ -200,7 +196,7 @@
     });
 
     /* -------------------------------------------------------------------------
-        🌟 CODE POUR SAUVEGARDE SUR GITHUB
+        🌟 SAUVEGARDE SUR GITHUB VIA TON BACKEND RENDER
     ------------------------------------------------------------------------- */
 
     document.getElementById('saveToGitBtn').addEventListener('click', async () => {
@@ -210,7 +206,7 @@
       const htmlContent = document.getElementById('editor').innerHTML;
 
       const payload = {
-        path: "bandeau/sauvegarde.html",   // ← CHEMIN DANS TON GITHUB
+        path: "bandeau/sauvegarde.html",   // ← Chemin dans ton GitHub
         content: htmlContent,
         message: "Mise à jour du bandeau via l'éditeur web"
       };
@@ -242,4 +238,3 @@
   </script>
 </body>
 </html>
-
