@@ -10,7 +10,7 @@
       --panel-bg: rgba(0,0,0,0.75); 
       --accent: #00BFFF;
       --hex-color: #0d2836; 
-      --scroll-text-color: white; /* Couleur par défaut, sera mis à jour */
+      --scroll-text-color: white; /* Couleur par défaut */
       --status-red: #FF4500;
       --status-yellow: #FFFF00;
       --status-blue: #00BFFF;
@@ -55,7 +55,7 @@
     }
 
     #scroll { 
-        /* La durée de l'animation sera définie par JS */
+        /* La durée de l'animation est définie par JS (par défaut 15s) */
         animation: horizontalScroll 15s linear infinite; 
         white-space: nowrap; 
         display: flex;
@@ -79,7 +79,6 @@
         font-size: 1rem;
         color: #fff;
         z-index: 999;
-        /* Styles ajoutés pour les éléments de contrôle */
         display: flex;
         flex-direction: column;
         gap: 10px;
@@ -100,7 +99,7 @@
         color: #000; 
         font-weight: 600; 
         z-index: 101; 
-        width: 220px; /* Pour une meilleure présentation */
+        width: 220px; 
         text-align: center;
     }
 
@@ -119,14 +118,14 @@
   <button id="fullscreenBtn" class="action-btn" style="top:70px;">Mode Affichage Bando</button>
   <button id="saveToGitBtn" class="action-btn" style="top:120px;">Sauvegarder sur GitHub</button>
 
-  <div class="editor-panel">
+    <div class="editor-panel"> 
     <h3>Modifier le texte</h3>
     <div id="editor" contenteditable="true"></div>
 
     <label for="color">Couleur du texte :</label>
     <input id="color" type="color" value="#FFFFFF">
 
-    <label>Vitesse : <span id="speedValue">15</span> secondes</label>
+    <label>Vitesse (en s) : <span id="speedValue">15</span></label>
     <input id="speed" type="range" min="3" max="60" value="15">
 
     <button id="updateBtn">Mettre à jour le bandeau</button>
@@ -138,28 +137,37 @@
     const STORAGE_KEY_SPEED = 'bandeau_speed';
 
     function prepareScrollContent(htmlContent){
-        // Nettoie le contenu de l'éditeur pour l'affichage défilant
+        // Nettoie le contenu et le double pour le défilement continu
         let clean = htmlContent.replace(/<br>/g, ' ')
                                .replace(/<div>/g, ' ')
                                .replace(/<\/div>/g, '')
-                               .replace(/\s+/g, ' ');
-        // Double le contenu pour garantir le défilement continu
+                               .replace(/\s+/g, ' ')
+                                .trim(); // Retire les espaces début/fin
+        // Ajoute de l'espace entre les deux répétitions
         return clean + " &nbsp; &nbsp; &nbsp; " + clean;
     }
 
     function updateScrollFromHtml(htmlContent){
-        document.getElementById('scrollContent').innerHTML =
-            prepareScrollContent(htmlContent);
+        const scrollContent = document.getElementById('scrollContent');
+        if (scrollContent) {
+            scrollContent.innerHTML = prepareScrollContent(htmlContent);
+        }
     }
 
     function applySettings(color, speed) {
         const scrollElement = document.getElementById('scroll');
-        // Applique la couleur en modifiant la variable CSS
-        document.documentElement.style.setProperty('--scroll-text-color', color);
-        // Applique la vitesse à l'animation
-        scrollElement.style.animationDuration = speed + 's';
+        if (scrollElement) {
+            // Applique la couleur en modifiant la variable CSS
+            document.documentElement.style.setProperty('--scroll-text-color', color);
+            // Applique la vitesse à l'animation (ceci devrait relancer le défilement)
+            scrollElement.style.animationDuration = speed + 's';
+        }
+        
         // Met à jour l'affichage de la valeur de la vitesse
-        document.getElementById('speedValue').textContent = speed;
+        const speedValueElement = document.getElementById('speedValue');
+        if (speedValueElement) {
+            speedValueElement.textContent = speed;
+        }
 
         // Enregistre les paramètres
         localStorage.setItem(STORAGE_KEY_COLOR, color);
@@ -180,86 +188,107 @@
         const savedText = localStorage.getItem(STORAGE_KEY_TEXT) || "Bienvenue dans le bandeau défilant ! Modifiez ce texte dans le panneau de gauche.";
         const savedColor = localStorage.getItem(STORAGE_KEY_COLOR) || "#FFFFFF";
         const savedSpeed = localStorage.getItem(STORAGE_KEY_SPEED) || "15";
-
-        editor.innerHTML = savedText;
-        colorInput.value = savedColor;
-        speedInput.value = savedSpeed;
-        
-        // Appliquer l'état initial
+        
+        // Appliquer les valeurs par défaut ou enregistrées
+        if (editor) editor.innerHTML = savedText;
+        if (colorInput) colorInput.value = savedColor;
+        if (speedInput) speedInput.value = savedSpeed;
+        
+        // Appliquer l'état initial (ceci relance le défilement et la couleur)
         updateScrollFromHtml(savedText);
         applySettings(savedColor, savedSpeed);
 
         // 2. Événement Mettre à jour
-        updateBtn.onclick = () => {
-            const html = editor.innerHTML;
-            updateScrollFromHtml(html);
-            localStorage.setItem(STORAGE_KEY_TEXT, html);
-        };
+        if (updateBtn && editor) {
+            updateBtn.onclick = () => {
+                const html = editor.innerHTML;
+                updateScrollFromHtml(html);
+                localStorage.setItem(STORAGE_KEY_TEXT, html);
+            };
+        }
         
         // 3. Événements Couleur et Vitesse (Mise à jour immédiate)
-        colorInput.oninput = (e) => {
-          applySettings(e.target.value, speedInput.value);
-        };
+        if (colorInput && speedInput) {
+            colorInput.oninput = (e) => {
+                applySettings(e.target.value, speedInput.value);
+            };
 
-        speedInput.oninput = (e) => {
-          applySettings(colorInput.value, e.target.value);
-        };
+            speedInput.oninput = (e) => {
+                applySettings(colorInput.value, e.target.value);
+            };
+        }
 
         // 4. Événement Bascule (Cacher/Afficher l'éditeur)
-        togglePanelBtn.onclick = () => {
-            const isHidden = editorPanel.classList.toggle('editor-hidden');
-            togglePanelBtn.textContent = isHidden ? 'Afficher l’éditeur' : 'Cacher l’éditeur';
-        };
+        if (togglePanelBtn && editorPanel) {
+            // S'assurer que le texte du bouton est correct si le panneau est visible/caché au début
+            if (editorPanel.classList.contains('editor-hidden')) {
+                togglePanelBtn.textContent = 'Afficher l’éditeur';
+            } else {
+                togglePanelBtn.textContent = 'Cacher l’éditeur';
+            }
+
+            togglePanelBtn.onclick = () => {
+                const isHidden = editorPanel.classList.toggle('editor-hidden');
+                togglePanelBtn.textContent = isHidden ? 'Afficher l’éditeur' : 'Cacher l’éditeur';
+            };
+        }
 
         // 5. Événement Mode Affichage Bando (Masque tout sauf le bandeau)
-        fullscreenBtn.onclick = () => {
-            // Masque les boutons et l'éditeur
-            editorPanel.classList.add('editor-hidden');
-            document.querySelectorAll('.action-btn').forEach(btn => {
-                btn.classList.add('editor-hidden');
-            });
-            // Petite astuce pour permettre de revenir en mode édition
-            alert("Mode Affichage Bando activé. Actualisez la page pour réafficher les contrôles.");
-        };
+        if (fullscreenBtn && editorPanel) {
+            fullscreenBtn.onclick = () => {
+                // Masque les boutons et l'éditeur
+                editorPanel.classList.add('editor-hidden');
+                document.querySelectorAll('.action-btn').forEach(btn => {
+                    btn.classList.add('editor-hidden');
+                });
+                
+                if (togglePanelBtn) togglePanelBtn.textContent = 'Afficher l’éditeur';
+
+                alert("Mode Affichage Bando activé. Actualisez la page pour réafficher les contrôles.");
+            };
+        }
         
         /* -------------------------------------------------------------------------
-            🌟 SAUVEGARDE GITHUB — VIA BACKEND RENDER (LAISSÉ INTACTE)
+            🌟 SAUVEGARDE GITHUB (Logique inchangée)
         ------------------------------------------------------------------------- */
-        document.getElementById('saveToGitBtn').addEventListener('click', async () => {
-          const secret = prompt("Entrez le code API secret :");
-          if (!secret) return;
+        const saveToGitBtn = document.getElementById('saveToGitBtn');
+        if (saveToGitBtn && editor) {
+            saveToGitBtn.addEventListener('click', async () => {
+                const secret = prompt("Entrez le code API secret :");
+                if (!secret) return;
 
-          const htmlContent = document.getElementById('editor').innerHTML;
+                const htmlContent = editor.innerHTML;
 
-          const payload = {
-            path: "bandeau/sauvegarde.html",
-            content: htmlContent,
-            message: "Mise à jour du bandeau via éditeur web"
-          };
+                const payload = {
+                    path: "bandeau/sauvegarde.html",
+                    content: htmlContent,
+                    message: "Mise à jour du bandeau via éditeur web"
+                };
 
-          try {
-            const res = await fetch("https://github-save-backend.onrender.com/save", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "x-api-secret": secret
-              },
-              body: JSON.stringify(payload)
-            });
+                try {
+                    const res = await fetch("https://github-save-backend.onrender.com/save", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "x-api-secret": secret
+                        },
+                        body: JSON.stringify(payload)
+                    });
 
-            const data = await res.json();
+                    const data = await res.json();
 
-            if (!res.ok) {
-              alert("Erreur : " + JSON.stringify(data));
-              return;
-            }
+                    if (!res.ok) {
+                        alert("Erreur : " + JSON.stringify(data));
+                        return;
+                    }
 
-            alert("Sauvegarde réussie !\n" + data.url);
+                    alert("Sauvegarde réussie !\n" + data.url);
 
-          } catch (err) {
-            alert("Erreur réseau : " + err.message);
-          }
-        });
+                } catch (err) {
+                    alert("Erreur réseau : " + err.message);
+                }
+            });
+        }
     });
 
   </script>
