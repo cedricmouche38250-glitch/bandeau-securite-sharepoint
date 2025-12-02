@@ -10,7 +10,7 @@
       --panel-bg: rgba(0,0,0,0.75); 
       --accent: #00BFFF;
       --hex-color: #0d2836; 
-      --scroll-text-color: white; /* Couleur par défaut */
+      --scroll-text-color: white; 
       --status-red: #FF4500;
       --status-yellow: #FFFF00;
       --status-blue: #00BFFF;
@@ -55,7 +55,6 @@
     }
 
     #scroll { 
-        /* La durée de l'animation est définie par JS (par défaut 15s) */
         animation: horizontalScroll 15s linear infinite; 
         white-space: nowrap; 
         display: flex;
@@ -117,8 +116,7 @@
   <button id="togglePanel" class="action-btn" style="top:20px;">Cacher l’éditeur</button>
   <button id="fullscreenBtn" class="action-btn" style="top:70px;">Mode Affichage Bando</button>
   <button id="saveToGitBtn" class="action-btn" style="top:120px;">Sauvegarder sur GitHub</button>
-
-    <div class="editor-panel"> 
+  <button id="loadFromGitBtn" class="action-btn" style="top:170px;">Charger depuis GitHub</button>   <div class="editor-panel"> 
     <h3>Modifier le texte</h3>
     <div id="editor" contenteditable="true"></div>
 
@@ -142,7 +140,7 @@
                                .replace(/<div>/g, ' ')
                                .replace(/<\/div>/g, '')
                                .replace(/\s+/g, ' ')
-                                .trim(); // Retire les espaces début/fin
+                                .trim(); 
         // Ajoute de l'espace entre les deux répétitions
         return clean + " &nbsp; &nbsp; &nbsp; " + clean;
     }
@@ -157,19 +155,15 @@
     function applySettings(color, speed) {
         const scrollElement = document.getElementById('scroll');
         if (scrollElement) {
-            // Applique la couleur en modifiant la variable CSS
             document.documentElement.style.setProperty('--scroll-text-color', color);
-            // Applique la vitesse à l'animation (ceci devrait relancer le défilement)
             scrollElement.style.animationDuration = speed + 's';
         }
         
-        // Met à jour l'affichage de la valeur de la vitesse
         const speedValueElement = document.getElementById('speedValue');
         if (speedValueElement) {
             speedValueElement.textContent = speed;
         }
 
-        // Enregistre les paramètres
         localStorage.setItem(STORAGE_KEY_COLOR, color);
         localStorage.setItem(STORAGE_KEY_SPEED, speed);
     }
@@ -183,18 +177,19 @@
         const togglePanelBtn = document.getElementById('togglePanel');
         const editorPanel = document.querySelector('.editor-panel');
         const fullscreenBtn = document.getElementById('fullscreenBtn');
+        const saveToGitBtn = document.getElementById('saveToGitBtn');
+        const loadFromGitBtn = document.getElementById('loadFromGitBtn'); // Récupération du nouveau bouton
 
         // 1. Chargement des données au démarrage
         const savedText = localStorage.getItem(STORAGE_KEY_TEXT) || "Bienvenue dans le bandeau défilant ! Modifiez ce texte dans le panneau de gauche.";
         const savedColor = localStorage.getItem(STORAGE_KEY_COLOR) || "#FFFFFF";
         const savedSpeed = localStorage.getItem(STORAGE_KEY_SPEED) || "15";
         
-        // Appliquer les valeurs par défaut ou enregistrées
         if (editor) editor.innerHTML = savedText;
         if (colorInput) colorInput.value = savedColor;
         if (speedInput) speedInput.value = savedSpeed;
         
-        // Appliquer l'état initial (ceci relance le défilement et la couleur)
+        // Appliquer l'état initial
         updateScrollFromHtml(savedText);
         applySettings(savedColor, savedSpeed);
 
@@ -204,10 +199,11 @@
                 const html = editor.innerHTML;
                 updateScrollFromHtml(html);
                 localStorage.setItem(STORAGE_KEY_TEXT, html);
+                alert("Bandeau mis à jour localement !");
             };
         }
         
-        // 3. Événements Couleur et Vitesse (Mise à jour immédiate)
+        // 3. Événements Couleur et Vitesse
         if (colorInput && speedInput) {
             colorInput.oninput = (e) => {
                 applySettings(e.target.value, speedInput.value);
@@ -220,7 +216,6 @@
 
         // 4. Événement Bascule (Cacher/Afficher l'éditeur)
         if (togglePanelBtn && editorPanel) {
-            // S'assurer que le texte du bouton est correct si le panneau est visible/caché au début
             if (editorPanel.classList.contains('editor-hidden')) {
                 togglePanelBtn.textContent = 'Afficher l’éditeur';
             } else {
@@ -233,10 +228,9 @@
             };
         }
 
-        // 5. Événement Mode Affichage Bando (Masque tout sauf le bandeau)
+        // 5. Événement Mode Affichage Bando
         if (fullscreenBtn && editorPanel) {
             fullscreenBtn.onclick = () => {
-                // Masque les boutons et l'éditeur
                 editorPanel.classList.add('editor-hidden');
                 document.querySelectorAll('.action-btn').forEach(btn => {
                     btn.classList.add('editor-hidden');
@@ -249,9 +243,8 @@
         }
         
         /* -------------------------------------------------------------------------
-            🌟 SAUVEGARDE GITHUB (Logique inchangée)
+            🌟 SAUVEGARDE GITHUB
         ------------------------------------------------------------------------- */
-        const saveToGitBtn = document.getElementById('saveToGitBtn');
         if (saveToGitBtn && editor) {
             saveToGitBtn.addEventListener('click', async () => {
                 const secret = prompt("Entrez le code API secret :");
@@ -286,6 +279,38 @@
 
                 } catch (err) {
                     alert("Erreur réseau : " + err.message);
+                }
+            });
+        }
+
+        /* -------------------------------------------------------------------------
+            🌟 CHARGEMENT DEPUIS GITHUB (NOUVELLE FONCTIONNALITÉ)
+        ------------------------------------------------------------------------- */
+        if (loadFromGitBtn && editor) {
+            loadFromGitBtn.addEventListener('click', async () => {
+                const rawUrl = prompt("Entrez l'URL brute (raw) de GitHub pour charger le bandeau (ex: https://raw.githubusercontent.com/.../sauvegarde.html) :");
+                if (!rawUrl) return;
+
+                try {
+                    const res = await fetch(rawUrl);
+
+                    if (!res.ok) {
+                        alert(`Erreur de chargement: Le fichier n'a pas été trouvé ou une erreur est survenue (Statut: ${res.status}).`);
+                        return;
+                    }
+
+                    const content = await res.text();
+                    
+                    // 1. Mettre à jour l'éditeur
+                    editor.innerHTML = content;
+                    // 2. Mettre à jour le bandeau défilant et sauvegarder localement
+                    updateScrollFromHtml(content);
+                    localStorage.setItem(STORAGE_KEY_TEXT, content);
+
+                    alert("Chargement réussi ! Le bandeau a été mis à jour.");
+
+                } catch (err) {
+                    alert("Erreur réseau ou CORS lors du chargement : " + err.message);
                 }
             });
         }
