@@ -1,196 +1,267 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="utf-8">
-  <title>Bandeau défilant (5cm - Final)</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8">
+  <title>Bandeau défilant (5cm - Final)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <style>
-    :root { 
-      --panel-bg: rgba(0,0,0,0.75); 
-      --accent: #00BFFF;
-      --hex-color: #0d2836; 
-      --scroll-text-color: white;
-      --status-red: #FF4500;
-      --status-yellow: #FFFF00;
-      --status-blue: #00BFFF;
-      --status-white: #FFFFFF;
-    }
+  <style>
+    :root { 
+      --panel-bg: rgba(0,0,0,0.75); 
+      --accent: #00BFFF;
+      --hex-color: #0d2836; 
+      --scroll-text-color: white; /* Couleur par défaut, sera mis à jour */
+      --status-red: #FF4500;
+      --status-yellow: #FFFF00;
+      --status-blue: #00BFFF;
+      --status-white: #FFFFFF;
+    }
 
-    #editor {
-        min-height: 100px;
-        border: 1px solid #444;
-        padding: 10px;
-        margin-bottom: 10px;
-        border-radius: 4px;
-        white-space: pre-wrap;
-        overflow-y: auto;
-        color: white;
-        background-color: #111;
-        font-family: Arial, sans-serif;
-        font-size: 1em;
-    }
+    #editor {
+        min-height: 100px;
+        border: 1px solid #444;
+        padding: 10px;
+        margin-bottom: 10px;
+        border-radius: 4px;
+        white-space: pre-wrap;
+        overflow-y: auto;
+        color: white;
+        background-color: #111;
+        font-family: Arial, sans-serif;
+        font-size: 1em;
+    }
 
-    body { 
-        background: black;
-        color: white; 
-        font-size: 2rem; 
-        margin: 0; 
-        font-family: Arial, sans-serif; 
-        margin-bottom: 5cm; 
-    }
+    body { 
+        background: black;
+        color: white; 
+        font-size: 2rem; 
+        margin: 0; 
+        font-family: Arial, sans-serif; 
+        margin-bottom: 5cm; 
+    }
 
-    .container { 
-        position: fixed; 
-        bottom: 0; 
-        left: 0;
-        width: 100vw; 
-        height: 5cm; 
-        display: flex; 
-        align-items: center; 
-        overflow: hidden; 
-        background: rgba(0,0,0,0.8); 
-        border-top: 3px solid var(--accent); 
-        z-index: 100; 
-    }
+    .container { 
+        position: fixed; 
+        bottom: 0; 
+        left: 0;
+        width: 100vw; 
+        height: 5cm; 
+        display: flex; 
+        align-items: center; 
+        overflow: hidden; 
+        background: rgba(0,0,0,0.8); 
+        border-top: 3px solid var(--accent); 
+        z-index: 100; 
+    }
 
-    .scroll { 
-        animation: horizontalScroll 15s linear infinite; 
-        white-space: nowrap; 
-        display: flex;
-        color: var(--scroll-text-color); 
-        width: max-content; 
-    }
+    #scroll { 
+        /* La durée de l'animation sera définie par JS */
+        animation: horizontalScroll 15s linear infinite; 
+        white-space: nowrap; 
+        display: flex;
+        color: var(--scroll-text-color); 
+        width: max-content; 
+    }
 
-    @keyframes horizontalScroll { 
-        0% { transform: translateX(0%); } 
-        100% { transform: translateX(-50%); } 
-    }
+    @keyframes horizontalScroll { 
+        0% { transform: translateX(0%); } 
+        100% { transform: translateX(-50%); } 
+    }
 
-    .editor-panel {
-        position: fixed;
-        top: 20px;
-        left: 20px;
-        background: var(--panel-bg);
-        padding: 14px;
-        border-radius: 12px;
-        width: 320px;
-        font-size: 1rem;
-        color: #fff;
-        z-index: 999;
-    }
+    .editor-panel {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        background: var(--panel-bg);
+        padding: 14px;
+        border-radius: 12px;
+        width: 320px;
+        font-size: 1rem;
+        color: #fff;
+        z-index: 999;
+        /* Styles ajoutés pour les éléments de contrôle */
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .editor-panel label {
+        font-weight: bold;
+    }
 
-    .action-btn { 
-        position: fixed; 
-        right: 20px; 
-        padding: 10px 14px; 
-        border-radius: 8px; 
-        border: none; 
-        cursor: pointer; 
-        background: var(--accent); 
-        color: #000; 
-        font-weight: 600; 
-        z-index: 101; 
-    }
+    .action-btn { 
+        position: fixed; 
+        right: 20px; 
+        padding: 10px 14px; 
+        border-radius: 8px; 
+        border: none; 
+        cursor: pointer; 
+        background: var(--accent); 
+        color: #000; 
+        font-weight: 600; 
+        z-index: 101; 
+        width: 220px; /* Pour une meilleure présentation */
+        text-align: center;
+    }
 
-    .editor-hidden { display: none !important; }
-  </style>
+    .editor-hidden { display: none !important; }
+  </style>
 </head>
 <body>
 
-  <div class="container">
-    <div id="scroll" class="scroll">
-        <div id="scrollContent"></div>
-    </div>
-  </div>
+  <div class="container">
+    <div id="scroll" class="scroll">
+        <div id="scrollContent"></div>
+    </div>
+  </div>
 
-  <button id="togglePanel" class="action-btn" style="top:20px;">Cacher l’éditeur</button>
-  <button id="fullscreenBtn" class="action-btn" style="top:70px;">Mode Affichage Bando</button>
-  <button id="saveToGitBtn" class="action-btn" style="top:120px;">Sauvegarder sur GitHub</button>
+  <button id="togglePanel" class="action-btn" style="top:20px;">Cacher l’éditeur</button>
+  <button id="fullscreenBtn" class="action-btn" style="top:70px;">Mode Affichage Bando</button>
+  <button id="saveToGitBtn" class="action-btn" style="top:120px;">Sauvegarder sur GitHub</button>
 
-  <div class="editor-panel editor-hidden">
-    <h3>Modifier le texte</h3>
-    <div id="editor" contenteditable="true"></div>
+  <div class="editor-panel">
+    <h3>Modifier le texte</h3>
+    <div id="editor" contenteditable="true"></div>
 
-    <label>Couleur :</label>
-    <input id="color" type="color" value="#FFFFFF">
+    <label for="color">Couleur du texte :</label>
+    <input id="color" type="color" value="#FFFFFF">
 
-    <label>Vitesse : <span id="speedValue">5</span></label>
-    <input id="speed" type="range" min="3" max="60" value="5">
+    <label>Vitesse : <span id="speedValue">15</span> secondes</label>
+    <input id="speed" type="range" min="3" max="60" value="15">
 
-    <button id="updateBtn">Mettre à jour</button>
-  </div>
+    <button id="updateBtn">Mettre à jour le bandeau</button>
+  </div>
 
-  <script>
-    const STORAGE_KEY_TEXT = 'bandeau_html_content'; 
+  <script>
+    const STORAGE_KEY_TEXT = 'bandeau_html_content'; 
+    const STORAGE_KEY_COLOR = 'bandeau_color';
+    const STORAGE_KEY_SPEED = 'bandeau_speed';
 
-    function prepareScrollContent(htmlContent){
-        let clean = htmlContent.replace(/<br>/g, ' ')
-                               .replace(/<div>/g, ' ')
-                               .replace(/<\/div>/g, '')
-                               .replace(/\s+/g, ' ');
-        return clean + clean;
-    }
+    function prepareScrollContent(htmlContent){
+        // Nettoie le contenu de l'éditeur pour l'affichage défilant
+        let clean = htmlContent.replace(/<br>/g, ' ')
+                               .replace(/<div>/g, ' ')
+                               .replace(/<\/div>/g, '')
+                               .replace(/\s+/g, ' ');
+        // Double le contenu pour garantir le défilement continu
+        return clean + " &nbsp; &nbsp; &nbsp; " + clean;
+    }
 
-    function updateScrollFromHtml(htmlContent){
-        document.getElementById('scrollContent').innerHTML =
-            prepareScrollContent(htmlContent);
-    }
+    function updateScrollFromHtml(htmlContent){
+        document.getElementById('scrollContent').innerHTML =
+            prepareScrollContent(htmlContent);
+    }
 
-    document.addEventListener('DOMContentLoaded', () => {
-        const editor = document.getElementById('editor');
+    function applySettings(color, speed) {
+        const scrollElement = document.getElementById('scroll');
+        // Applique la couleur en modifiant la variable CSS
+        document.documentElement.style.setProperty('--scroll-text-color', color);
+        // Applique la vitesse à l'animation
+        scrollElement.style.animationDuration = speed + 's';
+        // Met à jour l'affichage de la valeur de la vitesse
+        document.getElementById('speedValue').textContent = speed;
 
-        const saved = localStorage.getItem(STORAGE_KEY_TEXT) || "Bienvenue dans le bandeau défilant";
-        editor.innerHTML = saved;
-        updateScrollFromHtml(saved);
+        // Enregistre les paramètres
+        localStorage.setItem(STORAGE_KEY_COLOR, color);
+        localStorage.setItem(STORAGE_KEY_SPEED, speed);
+    }
 
-        document.getElementById('updateBtn').onclick = () => {
-            const html = editor.innerHTML;
-            updateScrollFromHtml(html);
-            localStorage.setItem(STORAGE_KEY_TEXT, html);
-        };
-    });
 
-    /* -------------------------------------------------------------------------
-        🌟 SAUVEGARDE GITHUB — VIA BACKEND RENDER
-    ------------------------------------------------------------------------- */
+    document.addEventListener('DOMContentLoaded', () => {
+        const editor = document.getElementById('editor');
+        const updateBtn = document.getElementById('updateBtn');
+        const colorInput = document.getElementById('color');
+        const speedInput = document.getElementById('speed');
+        const togglePanelBtn = document.getElementById('togglePanel');
+        const editorPanel = document.querySelector('.editor-panel');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
 
-    document.getElementById('saveToGitBtn').addEventListener('click', async () => {
-      const secret = prompt("Entrez le code API secret :");
-      if (!secret) return;
+        // 1. Chargement des données au démarrage
+        const savedText = localStorage.getItem(STORAGE_KEY_TEXT) || "Bienvenue dans le bandeau défilant ! Modifiez ce texte dans le panneau de gauche.";
+        const savedColor = localStorage.getItem(STORAGE_KEY_COLOR) || "#FFFFFF";
+        const savedSpeed = localStorage.getItem(STORAGE_KEY_SPEED) || "15";
 
-      const htmlContent = document.getElementById('editor').innerHTML;
+        editor.innerHTML = savedText;
+        colorInput.value = savedColor;
+        speedInput.value = savedSpeed;
+        
+        // Appliquer l'état initial
+        updateScrollFromHtml(savedText);
+        applySettings(savedColor, savedSpeed);
 
-      const payload = {
-        path: "bandeau/sauvegarde.html",
-        content: htmlContent,
-        message: "Mise à jour du bandeau via éditeur web"
-      };
+        // 2. Événement Mettre à jour
+        updateBtn.onclick = () => {
+            const html = editor.innerHTML;
+            updateScrollFromHtml(html);
+            localStorage.setItem(STORAGE_KEY_TEXT, html);
+        };
+        
+        // 3. Événements Couleur et Vitesse (Mise à jour immédiate)
+        colorInput.oninput = (e) => {
+          applySettings(e.target.value, speedInput.value);
+        };
 
-      try {
-        const res = await fetch("https://github-save-backend.onrender.com/save", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-api-secret": secret
-          },
-          body: JSON.stringify(payload)
-        });
+        speedInput.oninput = (e) => {
+          applySettings(colorInput.value, e.target.value);
+        };
 
-        const data = await res.json();
+        // 4. Événement Bascule (Cacher/Afficher l'éditeur)
+        togglePanelBtn.onclick = () => {
+            const isHidden = editorPanel.classList.toggle('editor-hidden');
+            togglePanelBtn.textContent = isHidden ? 'Afficher l’éditeur' : 'Cacher l’éditeur';
+        };
 
-        if (!res.ok) {
-          alert("Erreur : " + JSON.stringify(data));
-          return;
-        }
+        // 5. Événement Mode Affichage Bando (Masque tout sauf le bandeau)
+        fullscreenBtn.onclick = () => {
+            // Masque les boutons et l'éditeur
+            editorPanel.classList.add('editor-hidden');
+            document.querySelectorAll('.action-btn').forEach(btn => {
+                btn.classList.add('editor-hidden');
+            });
+            // Petite astuce pour permettre de revenir en mode édition
+            alert("Mode Affichage Bando activé. Actualisez la page pour réafficher les contrôles.");
+        };
+        
+        /* -------------------------------------------------------------------------
+            🌟 SAUVEGARDE GITHUB — VIA BACKEND RENDER (LAISSÉ INTACTE)
+        ------------------------------------------------------------------------- */
+        document.getElementById('saveToGitBtn').addEventListener('click', async () => {
+          const secret = prompt("Entrez le code API secret :");
+          if (!secret) return;
 
-        alert("Sauvegarde réussie !\n" + data.url);
+          const htmlContent = document.getElementById('editor').innerHTML;
 
-      } catch (err) {
-        alert("Erreur réseau : " + err.message);
-      }
-    });
+          const payload = {
+            path: "bandeau/sauvegarde.html",
+            content: htmlContent,
+            message: "Mise à jour du bandeau via éditeur web"
+          };
 
-  </script>
+          try {
+            const res = await fetch("https://github-save-backend.onrender.com/save", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-api-secret": secret
+              },
+              body: JSON.stringify(payload)
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+              alert("Erreur : " + JSON.stringify(data));
+              return;
+            }
+
+            alert("Sauvegarde réussie !\n" + data.url);
+
+          } catch (err) {
+            alert("Erreur réseau : " + err.message);
+          }
+        });
+    });
+
+  </script>
 </body>
 </html>
